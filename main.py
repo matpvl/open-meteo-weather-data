@@ -89,16 +89,19 @@ def fetch_weather_data(place_name: str, start_date: str, end_date: str):
 
 if __name__ == "__main__":
     # We use argparse in order to call the script from CL.
-    # parser = argparse.ArgumentParser(description="Fetch weather data for given city")
-    # parser.add_argument(
-    #     "place_name", type=str, help="Name of the city for which you want weather data"
-    # )
-    # parser.add_argument("start_date", type=str, help='Start date - "YYYY-MM-DD"')
-    # parser.add_argument("end_date", type=str, help='End date - "YYYY-MM-DD"')
-    # args = parser.parse_args()
-    # fetch_weather_data(args.place_name, args.start_date, args.end_date)
+    parser = argparse.ArgumentParser(description="Fetch weather data for given city")
+    parser.add_argument(
+        "place_name", type=str, help="Name of the city for which you want weather data"
+    )
+    parser.add_argument("start_date", type=str, help='Start date - "YYYY-MM-DD"')
+    parser.add_argument("end_date", type=str, help='End date - "YYYY-MM-DD"')
+    args = parser.parse_args()
+    start = datetime.datetime.strptime(args.start_date, "%Y-%m-%d")
+    end = datetime.datetime.strptime(args.end_date, "%Y-%m-%d")
+    min_date = datetime.datetime.strptime("2022-07-05", "%Y-%m-%d")
+    max_date = datetime.datetime.strptime("2023-01-01", "%Y-%m-%d")
 
-    place_name = 'London'
-    start_date = '2022-07-05'
-    end_date = '2023-01-01'
-    fetch_weather_data(place_name, start_date, end_date)
+    if start >= min_date and end <= max_date:
+        fetch_weather_data(args.place_name, args.start_date, args.end_date)
+    else:
+        print("Error: Invalid date range. Acceptable range is from 2022-07-05 to 2023-01-01.")
