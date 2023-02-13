@@ -1,6 +1,5 @@
 import argparse
 import datetime
-import os.path
 import sqlite3
 
 import requests
@@ -19,8 +18,10 @@ def fetch_weather_data(place_name: str, start_date: str, end_date: str):
     obj = TimezoneFinder()
     tz = obj.timezone_at(lat=location.latitude, lng=location.longitude)
 
-    endpoint1 = "https://api.open-meteo.com/v1/forecast" # Forecast data
-    endpoint2 = "https://archive-api.open-meteo.com/v1/archive" # Measured historical data
+    endpoint1 = "https://api.open-meteo.com/v1/forecast"  # Forecast data
+    endpoint2 = (
+        "https://archive-api.open-meteo.com/v1/archive"  # Measured historical data
+    )
 
     payload = {
         "latitude": lat,
@@ -49,14 +50,23 @@ def fetch_weather_data(place_name: str, start_date: str, end_date: str):
     print(measured_data)
 
     # # We connect to the database or create a new one if it doesn't exist
+    # create_table()
+
     conn = sqlite3.connect("weather_data.db")
     cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS weather_data (time TEXT, place TEXT, precipitation_sum REAL, temperature_2m_max REAL,temperature_2m_min REAL, windspeed_10m_max REAL, measured_forecast TEXT)")
+    cursor.execute(
+        "CREATE TABLE IF NOT EXISTS weather_data "
+        "(id INTEGER PRIMARY KEY, time TEXT, place TEXT, precipitation_sum REAL, "
+        "temperature_2m_max REAL,temperature_2m_min REAL, windspeed_10m_max REAL, measured_forecast TEXT)"
+    )
     try:
-        cursor.execute("CREATE UNIQUE INDEX unique_time_measured_forecast_place ON weather_data (time, measured_forecast, place)")
+        cursor.execute(
+            "CREATE UNIQUE INDEX unique_time_measured_forecast_place "
+            "ON weather_data (time, measured_forecast, place)"
+        )
     except sqlite3.OperationalError as error:
-        if 'already exists' in str(error):
-            print('Index already exists, skipping...')
+        if "already exists" in str(error):
+            print("Index already exists, skipping...")
         else:
             raise error
 
@@ -69,16 +79,38 @@ def fetch_weather_data(place_name: str, start_date: str, end_date: str):
             temperature_2m_min = data["temperature_2m_min"][i]
             windspeed_10m_max = data["windspeed_10m_max"][i]
             measured_forecast = data[data_type][i]
-            insert = "INSERT INTO weather_data VALUES ('{}','{}',{},{},{},{},'{}')".format(
-                time,
-                place,
-                precipitation_sum,
-                temperature_2m_max,
-                temperature_2m_min,
-                windspeed_10m_max,
-                measured_forecast,
+            insert = (
+                "INSERT INTO weather_data (id, time, place, precipitation_sum, temperature_2m_max,"
+                " temperature_2m_min, windspeed_10m_max, measured_forecast)"
+                " VALUES (NULL, '{}','{}',{},{},{},{},'{}')".format(
+                    time,
+                    place,
+                    precipitation_sum,
+                    temperature_2m_max,
+                    temperature_2m_min,
+                    windspeed_10m_max,
+                    measured_forecast,
+                )
             )
-            cursor.execute(insert)
+            try:
+                cursor.execute(insert)
+            except sqlite3.IntegrityError:
+                update = (
+                    "UPDATE weather_data "
+                    "SET precipitation_sum = {}, temperature_2m_max = {}, "
+                    "temperature_2m_min = {}, windspeed_10m_max = {} "
+                    "WHERE time = '{}' AND place = '{}' "
+                    "AND measured_forecast = '{}'".format(
+                        precipitation_sum,
+                        temperature_2m_max,
+                        temperature_2m_min,
+                        windspeed_10m_max,
+                        time,
+                        place,
+                        measured_forecast,
+                    )
+                )
+                cursor.execute(update)
 
     insert_data(measured_data, "measured")
     insert_data(forecast_data, "forecast")
@@ -104,4 +136,6 @@ if __name__ == "__main__":
     if start >= min_date and end <= max_date:
         fetch_weather_data(args.place_name, args.start_date, args.end_date)
     else:
-        print("Error: Invalid date range. Acceptable range is from 2022-07-05 to 2023-01-01.")
+        print(
+            "Error: Invalid date range. Acceptable range is from 2022-07-05 to 2023-01-01."
+        )
