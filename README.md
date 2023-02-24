@@ -5,3 +5,4 @@ in which it stores measured and forecast data.
 
 # TO-DO:
 - SQL injection protection
+- Prevent invalid place names
